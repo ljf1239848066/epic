@@ -5,7 +5,7 @@ android {
     buildToolsVersion '28.0.3'
 
     defaultConfig {
-        minSdkVersion 14
+        minSdkVersion 15
         targetSdkVersion 27
         versionCode 1
         versionName "1.0"
@@ -15,12 +15,12 @@ android {
         ndk {
             // Specifies the ABI configurations of your native
             // libraries Gradle should build and package with your APK.
-            abiFilters 'armeabi', 'armeabi-v7a', 'arm64-v8a'
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
         }
         externalNativeBuild {
             cmake {
                 cppFlags "-std=c++11"
-                arguments "-DANDROID_TOOLCHAIN=gcc"
+                arguments "-DANDROID_TOOLCHAIN=clang"
             }
         }
     }
@@ -45,15 +45,3 @@ dependencies {
     implementation "me.weishu:free_reflection:2.1.0"
     api 'me.weishu.exposed:exposed-xposedapi:0.4.5'
 }
-
-apply plugin: 'com.novoda.bintray-release'
-
-publish {
-    userOrg = 'twsxtd'//
-    groupId = 'me.weishu'
-    artifactId = 'epic'
-    publishVersion = '0.6.2-c'
-    desc = 'Android Java AOP Method Hook (Dexposed on ART)'
-    website = 'https://github.com/tiann/epic'
-}
-

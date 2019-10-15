@@ -36,11 +36,11 @@
 //#define log_dbg(...)
 //#endif
 
-#ifdef __arm__
+#if defined(__arm__) || defined(__i386__)
 #define Elf_Ehdr Elf32_Ehdr
 #define Elf_Shdr Elf32_Shdr
 #define Elf_Sym  Elf32_Sym
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__x86_64__) || defined(__x86_64)
 #define Elf_Ehdr Elf64_Ehdr
 #define Elf_Shdr Elf64_Shdr
 #define Elf_Sym  Elf64_Sym
@@ -49,9 +49,12 @@
 #endif
 
 struct ctx {
-    void *load_addr;
-    void *dynstr;
-    void *dynsym;	
+//    void *load_addr;
+//    void *dynstr;
+//    void *dynsym;
+    char *load_addr;
+	char *dynstr;
+	char *dynsym;
     int nsyms;
     off_t bias;
 };
@@ -75,7 +78,7 @@ void *fake_dlopen(const char *libpath, int flags) {
 	struct ctx *ctx = 0;
 	off_t load_addr, size;
 	int k, fd = -1, found = 0;
-	void *shoff;
+    char *shoff;
 	Elf_Ehdr *elf = (Elf_Ehdr *) MAP_FAILED;
 
 #define fatal(fmt, args...) do { log_err(fmt,##args); goto err_exit; } while(0)
@@ -83,9 +86,12 @@ void *fake_dlopen(const char *libpath, int flags) {
 	maps = fopen("/proc/self/maps", "r");
 	if (!maps) fatal("failed to open maps");
 
-	while (!found && fgets(buff, sizeof(buff), maps))
-		if (strstr(buff, "r-xp") && strstr(buff, libpath)) found = 1;
-
+	while (fgets(buff, sizeof(buff), maps)) {
+		if ((strstr(buff, "r-xp") || strstr(buff, "r--p")) && strstr(buff, libpath)) {
+			found = 1;
+			break;
+		}
+	}
 	fclose(maps);
 
 	if (!found) fatal("%s not found in my userspace", libpath);
@@ -112,8 +118,8 @@ void *fake_dlopen(const char *libpath, int flags) {
 	ctx = (struct ctx *) calloc(1, sizeof(struct ctx));
 	if (!ctx) fatal("no memory for %s", libpath);
 
-	ctx->load_addr = (void *) load_addr;
-	shoff = ((void *) elf) + elf->e_shoff;
+	ctx->load_addr = (char *) load_addr;
+	shoff = ((char *) elf) + elf->e_shoff;
 
 	for (k = 0; k < elf->e_shnum; k++, shoff += elf->e_shentsize) {
 
@@ -124,17 +130,17 @@ void *fake_dlopen(const char *libpath, int flags) {
 
 			case SHT_DYNSYM:
 				if (ctx->dynsym) fatal("%s: duplicate DYNSYM sections", libpath); /* .dynsym */
-				ctx->dynsym = malloc(sh->sh_size);
+				ctx->dynsym = (char*) malloc(sh->sh_size);
 				if (!ctx->dynsym) fatal("%s: no memory for .dynsym", libpath);
-				memcpy(ctx->dynsym, ((void *) elf) + sh->sh_offset, sh->sh_size);
+				memcpy(ctx->dynsym, ((char *) elf) + sh->sh_offset, sh->sh_size);
 				ctx->nsyms = (sh->sh_size / sizeof(Elf_Sym));
 				break;
 
 			case SHT_STRTAB:
 				if (ctx->dynstr) break;    /* .dynstr is guaranteed to be the first STRTAB */
-				ctx->dynstr = malloc(sh->sh_size);
+				ctx->dynstr = (char*) malloc(sh->sh_size);
 				if (!ctx->dynstr) fatal("%s: no memory for .dynstr", libpath);
-				memcpy(ctx->dynstr, ((void *) elf) + sh->sh_offset, sh->sh_size);
+				memcpy(ctx->dynstr, ((char *) elf) + sh->sh_offset, sh->sh_size);
 				break;
 
 			case SHT_PROGBITS:
