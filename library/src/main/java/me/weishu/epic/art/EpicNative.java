@@ -113,6 +113,12 @@ public final class EpicNative {
      */
     public static native void disableMovingGc(int api);
 
+    /**
+     * check whether the VM is running in 64-bit mode
+     * @return
+     */
+    public static native boolean is64Bit();
+
 
     private EpicNative() {
     }

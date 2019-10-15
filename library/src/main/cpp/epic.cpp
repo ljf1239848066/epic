@@ -312,6 +312,13 @@ jboolean epic_activate(JNIEnv* env, jclass jclazz, jlong jumpToAddress, jlong pc
     return result;
 }
 
+JNIEXPORT jboolean JNICALL epic_is64Bit
+        (JNIEnv *, jclass) {
+    bool is64BitMode = (sizeof(void*) == sizeof(uint64_t));
+    return is64BitMode ? JNI_TRUE : JNI_FALSE;
+}
+
+
 static JNINativeMethod dexposedMethods[] = {
 
         {"mmap",              "(I)J",                          (void *) epic_mmap},
@@ -331,7 +338,8 @@ static JNINativeMethod dexposedMethods[] = {
         {"startJit",          "(J)V",                          (void *) epic_startJit},
         {"disableMovingGc",   "(I)V",                          (void *) epic_disableMovingGc},
         {"activateNative",    "(JJJJ[B)Z",                     (void *) epic_activate},
-        {"isGetObjectAvailable", "()Z",                        (void *) epic_isGetObjectAvaliable}
+        {"isGetObjectAvailable", "()Z",                        (void *) epic_isGetObjectAvaliable},
+        {"is64Bit",           "()Z",                           (void *) epic_is64Bit}
 };
 
 static int registerNativeMethods(JNIEnv *env, const char *className,

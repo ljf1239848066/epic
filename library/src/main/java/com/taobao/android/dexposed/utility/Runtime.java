@@ -21,6 +21,7 @@ import android.util.Log;
 
 import java.lang.reflect.Method;
 
+import me.weishu.epic.art.EpicNative;
 import me.weishu.epic.art.method.ArtMethod;
 
 public class Runtime {
@@ -34,7 +35,14 @@ public class Runtime {
 
     static {
         try {
-            g64 = (boolean) Class.forName("dalvik.system.VMRuntime").getDeclaredMethod("is64Bit").invoke(Class.forName("dalvik.system.VMRuntime").getDeclaredMethod("getRuntime").invoke(null));
+            g64 = EpicNative.is64Bit();
+//            Class<?> VMRuntimeClass = Class.forName("dalvik.system.VMRuntime");
+//            Method is64BitMethod = VMRuntimeClass.getDeclaredMethod("is64Bit");
+//            Method getRuntimeMethod = VMRuntimeClass.getDeclaredMethod("getRuntime");//static
+//            Object VMRuntime = getRuntimeMethod.invoke(VMRuntimeClass);
+//            g64 = (boolean) is64BitMethod.invoke(VMRuntime);
+//
+//            g64 = (boolean) .getDeclaredMethod("is64Bit").invoke(Class.forName("dalvik.system.VMRuntime").getDeclaredMethod("getRuntime").invoke(null));
         } catch (Exception e) {
             Log.e(TAG, "get is64Bit failed, default not 64bit!", e);
             g64 = false;
