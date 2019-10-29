@@ -25,7 +25,7 @@
 #include <android/log.h>
 #include "fake_dlfcn.h"
 
-#define TAG_NAME	"test2:fake_dlfcn"
+#define TAG_NAME	"epic.Native"
 
 #define log_info(fmt,args...) __android_log_print(ANDROID_LOG_INFO, TAG_NAME, (const char *) fmt, ##args)
 #define log_err(fmt,args...) __android_log_print(ANDROID_LOG_ERROR, TAG_NAME, (const char *) fmt, ##args)
@@ -61,6 +61,7 @@ struct ctx {
 
 extern "C" {
 int fake_dlclose(void *handle) {
+	log_dbg("fake_dlclose");
 	if (handle) {
 		struct ctx *ctx = (struct ctx *) handle;
 		if (ctx->dynsym) free(ctx->dynsym);    /* we're saving dynsym and dynstr */
@@ -73,6 +74,7 @@ int fake_dlclose(void *handle) {
 /* flags are ignored */
 
 void *fake_dlopen(const char *libpath, int flags) {
+	log_dbg("fake_dlopen");
 	FILE *maps;
 	char buff[256];
 	struct ctx *ctx = 0;
@@ -171,6 +173,7 @@ void *fake_dlopen(const char *libpath, int flags) {
 }
 
 void *fake_dlsym(void *handle, const char *name) {
+	log_dbg("fake_dlsym");
 	int k;
 	struct ctx *ctx = (struct ctx *) handle;
 	Elf_Sym *sym = (Elf_Sym *) ctx->dynsym;

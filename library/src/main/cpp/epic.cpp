@@ -27,12 +27,7 @@
 #include "fake_dlfcn.h"
 #include "art.h"
 
-#undef NDEBUG
-#ifdef NDEBUG
 #define LOGV(...)  ((void)__android_log_print(ANDROID_LOG_INFO, "epic.Native", __VA_ARGS__))
-#else
-#define LOGV(...)
-#endif
 
 #define JNIHOOK_CLASS "me/weishu/epic/art/EpicNative"
 
@@ -88,13 +83,24 @@ void init_entries(JNIEnv *env) {
         // Android N and O, Google disallow us use dlsym;
         void *handle;
         void *jit_lib;
-        if (sizeof(void*) == sizeof(uint64_t)) {
-            LOGV("64 bit mode.");
-            handle = fake_dlopen("/system/lib64/libart.so", RTLD_NOW);
-            jit_lib = fake_dlopen("/system/lib64/libart-compiler.so", RTLD_NOW);
+        if (api_level >= 29) {
+            if (sizeof(void*) == sizeof(uint64_t)) {
+                LOGV("64 bit mode.");
+                handle = fake_dlopen("/apex/com.android.runtime/lib64/libart.so", RTLD_NOW);
+                jit_lib = fake_dlopen("/apex/com.android.runtime/lib64/libart-compiler.so", RTLD_NOW);
+            } else {
+                handle = fake_dlopen("/apex/com.android.runtime/lib/libart.so", RTLD_NOW);
+                jit_lib = fake_dlopen("/apex/com.android.runtime/lib/libart-compiler.so", RTLD_NOW);
+            }
         } else {
-            handle = fake_dlopen("/system/lib/libart.so", RTLD_NOW);
-            jit_lib = fake_dlopen("/system/lib/libart-compiler.so", RTLD_NOW);
+            if (sizeof(void*) == sizeof(uint64_t)) {
+                LOGV("64 bit mode.");
+                handle = fake_dlopen("/system/lib64/libart.so", RTLD_NOW);
+                jit_lib = fake_dlopen("/system/lib64/libart-compiler.so", RTLD_NOW);
+            } else {
+                handle = fake_dlopen("/system/lib/libart.so", RTLD_NOW);
+                jit_lib = fake_dlopen("/system/lib/libart-compiler.so", RTLD_NOW);
+            }
         }
         LOGV("fake dlopen install: %p", handle);
         const char *addWeakGloablReferenceSymbol = api_level <= 25
@@ -122,6 +128,7 @@ void init_entries(JNIEnv *env) {
 }
 
 jboolean epic_compile(JNIEnv *env, jclass, jobject method, jlong self) {
+    LOGV("epic_compile");
     LOGV("self from native peer: %p, from register: %p", reinterpret_cast<void*>(self), __self());
     jlong art_method = (jlong) env->FromReflectedMethod(method);
     bool ret = jit_compile_method_(jit_compiler_handle_, reinterpret_cast<void*>(art_method), reinterpret_cast<void*>(self), false);
@@ -129,33 +136,39 @@ jboolean epic_compile(JNIEnv *env, jclass, jobject method, jlong self) {
 }
 
 jlong epic_suspendAll(JNIEnv *, jclass) {
+    LOGV("epic_suspendAll");
     ScopedSuspendAll *scopedSuspendAll = (ScopedSuspendAll *) malloc(sizeof(ScopedSuspendAll));
     suspendAll(scopedSuspendAll, "stop_jit");
     return reinterpret_cast<jlong >(scopedSuspendAll);
 }
 
 void epic_resumeAll(JNIEnv* env, jclass, jlong obj) {
+    LOGV("epic_resumeAll");
     ScopedSuspendAll* scopedSuspendAll = reinterpret_cast<ScopedSuspendAll*>(obj);
     resumeAll(scopedSuspendAll);
 }
 
 jlong epic_stopJit(JNIEnv*, jclass) {
+    LOGV("epic_stopJit");
     ScopedJitSuspend *scopedJitSuspend = (ScopedJitSuspend *) malloc(sizeof(ScopedJitSuspend));
     stopJit(scopedJitSuspend);
     return reinterpret_cast<jlong >(scopedJitSuspend);
 }
 
 void epic_startJit(JNIEnv*, jclass, jlong obj) {
+    LOGV("epic_startJit");
     ScopedJitSuspend *scopedJitSuspend = reinterpret_cast<ScopedJitSuspend *>(obj);
     startJit(scopedJitSuspend);
 }
 
 void epic_disableMovingGc(JNIEnv* env, jclass ,jint api) {
+    LOGV("epic_disableMovingGc");
     void *heap = getHeap(env, api);
     DisableMovingGc(heap);
 }
 
 jboolean epic_munprotect(JNIEnv *env, jclass, jlong addr, jlong len) {
+    LOGV("epic_munprotect");
     long pagesize = sysconf(_SC_PAGESIZE);
     unsigned alignment = (unsigned)((unsigned long long)addr % pagesize);
     LOGV("munprotect page size: %d, alignment: %d", pagesize, alignment);
@@ -170,6 +183,7 @@ jboolean epic_munprotect(JNIEnv *env, jclass, jlong addr, jlong len) {
 }
 
 jboolean epic_cacheflush(JNIEnv *env, jclass, jlong addr, jlong len) {
+    LOGV("epic_cacheflush");
 #if defined(__arm__)
     int i = cacheflush(addr, addr + len, 0);
     LOGV("arm cacheflush for, %ul", addr);
@@ -186,6 +200,7 @@ jboolean epic_cacheflush(JNIEnv *env, jclass, jlong addr, jlong len) {
 }
 
 void epic_memcpy(JNIEnv *env, jclass, jlong src, jlong dest, jint length) {
+    LOGV("epic_memcpy length: %d", (int)length);
     char *srcPnt = (char *) src;
     char *destPnt = (char *) dest;
     for (int i = 0; i < length; ++i) {
@@ -194,7 +209,7 @@ void epic_memcpy(JNIEnv *env, jclass, jlong src, jlong dest, jint length) {
 }
 
 void epic_memput(JNIEnv *env, jclass, jbyteArray src, jlong dest) {
-
+    LOGV("epic_memput");
     jbyte *srcPnt = env->GetByteArrayElements(src, 0);
     jsize length = env->GetArrayLength(src);
     unsigned char *destPnt = (unsigned char *) dest;
@@ -206,7 +221,7 @@ void epic_memput(JNIEnv *env, jclass, jbyteArray src, jlong dest) {
 }
 
 jbyteArray epic_memget(JNIEnv *env, jclass, jlong src, jint length) {
-
+    LOGV("epic_memget");
     jbyteArray dest = env->NewByteArray(length);
     if (dest == NULL) {
         return NULL;
@@ -222,6 +237,7 @@ jbyteArray epic_memget(JNIEnv *env, jclass, jlong src, jint length) {
 }
 
 jlong epic_mmap(JNIEnv *env, jclass, jint length) {
+    LOGV("epic_mmap");
     void *space = mmap(0, (size_t) length, PROT_READ | PROT_WRITE | PROT_EXEC,
                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (space == MAP_FAILED) {
@@ -239,6 +255,7 @@ void epic_munmap(JNIEnv *env, jclass, jlong addr, jint length) {
 }
 
 jlong epic_malloc(JNIEnv *env, jclass, jint size) {
+    LOGV("epic_malloc");
     size_t length = sizeof(void *) * size;
     void *ptr = malloc(length);
     LOGV("malloc :%d of memory at: %p", (int) length, ptr);
